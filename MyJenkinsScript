@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    tools{
+    maven 'mavenInstall'
+    }
+
+    stages {
+        stage('Clone the code') {
+            steps {
+                echo 'Hello World'
+		git branch: 'main', url: 'https://github.com/Divakar536/maven-web-app.git'
+            }
+        }
+	stage('Unit test') {
+            steps {
+                echo 'Test the code'
+		sh 'mvn test'
+            }
+        }
+        stage('Scan the code') {
+            steps {
+                echo 'scaning my code'
+		sh 'ls -ltr'
+		sh ''' mvn sonar:sonar \\
+                       -Dsonar.host.url=http://18.193.119.84:9000 \\
+                       -Dsonar.login=squ_ab0e5d97147d350f1a0c1249ea4ac3a385f95720'''
+            }
+        }
+	stage('Build the Artifact') {
+            steps {
+                echo 'Packge building'
+		sh 'mvn clean package'
+            }
+        }
+	stage('Docker Image Build') {
+            steps {
+                echo 'Building Docker Image'
+                 sh 'docker build -t divakar536/javaimg:${BUILD_NUMBER} -f Dockerfile .'
+            }
+        }
+	stage('Push the DockerImg') {
+            steps {
+	      script {
+	      withCredentials([usernamePassword(
+  credentialsId: 'DockerHub', 
+  usernameVariable: 'DOCKER_USER', 
+  passwordVariable: 'DOCKER_PASS'
+)]){
+          sh 'docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}'
+                }
+                echo 'To push into DockeHub'
+                  sh 'docker push divakar536/javaimg:${BUILD_NUMBER}'
+            }
+        }
+    }
+}
+}
